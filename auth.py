@@ -24,9 +24,7 @@ class RegisterRequest(BaseModel):
             raise ValueError("Password must be at least 8 characters")
         return value
 
-class TaskRequest(BaseModel):
-    title:str
-    description:str
+
 
 class RequestRefreshToken(BaseModel):
     refresh_token:str
@@ -104,20 +102,7 @@ def login(formdata:OAuth2PasswordRequestForm=Depends()):
             detail="Incorrect email or password"
         )
 
-@app.post("/task/create_task")
-def create_task(request:TaskRequest,current_user=Depends(get_current_user)):
-    task_id=uuid4()
-    task={
-        "task_id":str(task_id),
-        "title":request.title,
-        "description":request.description,
-        "user_id":current_user["user_id"]
-    }
-    tasks.append(task)
-    return {
-        "user_id":current_user["user_id"],
-        "message":"task successfully created"
-    }
+
 @app.post("/auth/refresh")
 def refresh_token(request:RequestRefreshToken):
 
