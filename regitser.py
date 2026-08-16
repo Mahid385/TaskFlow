@@ -118,14 +118,20 @@ def create_task(request:TaskRequest,current_user=Depends(get_current_user)):
     }
 @app.post("/auth/refresh")
 def refresh_token(token:str):
-    payload=jwt.verify_access_token(token)
+    try:
+        payload=jwt.verify_access_token(token)
+    except JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
     if payload["type"]!="refresh":
         raise HTTPException(
             status_code=401,
             detail="Invalid token type"
         )
     for user in database:
-        if user["user_id"]==payload["sub"]:
+        if str(user["user_id"])==payload["sub"]:
             access_token=jwt.create_access_token(payload["sub"])
             return  {
                         "access_token": access_token,
