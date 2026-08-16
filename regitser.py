@@ -27,12 +27,16 @@ class RegisterRequest(BaseModel):
 class TaskRequest(BaseModel):
     title:str
     description:str
+
+class RequestRefreshToken(BaseModel):
+    refresh_token:str
+
 app=FastAPI()
 
 
 def get_current_user(token:str=Depends(oauth2_scheme)):
     try:
-        payload=jwt.verify_access_token(token)
+        payload=jwt.decode_access_token(token)
     except JWTError:
         raise HTTPException(
             status_code=401,
@@ -43,9 +47,9 @@ def get_current_user(token:str=Depends(oauth2_scheme)):
             status_code=401,
             detail="Invalid access token"
         )
-    user_id=payload["sub"]
+    user_id=payload.get("sub")
     for user in database:
-        if str(user["user_id"])==user_id:
+        if str(user.get("user_id"))==user_id:
             return user
     raise HTTPException(
         status_code=401,
@@ -58,7 +62,7 @@ def registration(request:RegisterRequest):
     for inst in database:
         if request.email==inst.get("user_email"):
             raise HTTPException(
-                status_code=409,
+                status_code=401,
                 detail="Email already registered"
             )
     user_id=uuid4()
@@ -80,15 +84,10 @@ def login(formdata:OAuth2PasswordRequestForm=Depends()):
     password=formdata.password
     for inst in database:
         if email==inst.get("user_email"):
-        #     hash_pass=inst.get("password")
-        #     pass_hash.verify(hash_pass,request.password)
-
-            
-        
             try:
-                pass_hash.verify(inst["password"],password)
-                access_token=jwt.create_access_token(inst["user_id"])
-                refresh_token=jwt.create_refresh_token(inst["user_id"])
+                pass_hash.verify(inst.get("password"),password)
+                access_token=jwt.create_access_token(inst.get("user_id"))
+                refresh_token=jwt.create_refresh_token(inst.get("user_id"))
                 return {
                 "access_token": access_token,
                 "refresh_token":refresh_token,
@@ -100,7 +99,10 @@ def login(formdata:OAuth2PasswordRequestForm=Depends()):
                     detail="Incorrect email or password"
                 )
     else:
-        raise HTTPException(404,"Email not found")
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password"
+        )
 
 @app.post("/task/create_task")
 def create_task(request:TaskRequest,current_user=Depends(get_current_user)):
@@ -117,9 +119,10 @@ def create_task(request:TaskRequest,current_user=Depends(get_current_user)):
         "message":"task successfully created"
     }
 @app.post("/auth/refresh")
-def refresh_token(token:str):
+def refresh_token(request:RequestRefreshToken):
+
     try:
-        payload=jwt.verify_access_token(token)
+        payload=jwt.decode_access_token(request.refresh_token)
     except JWTError:
         raise HTTPException(
             status_code=401,
@@ -131,7 +134,7 @@ def refresh_token(token:str):
             detail="Invalid token type"
         )
     for user in database:
-        if str(user["user_id"])==payload["sub"]:
+        if str(user.get("user_id"))==payload.get("sub"):
             access_token=jwt.create_access_token(payload["sub"])
             return  {
                         "access_token": access_token,

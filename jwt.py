@@ -18,7 +18,7 @@ def create_access_token(user_id:str,expire_min:int=15):
         algorithm=ALGORITHM
     )
     return token
-def verify_access_token(token:str):
+def decode_access_token(token:str):
     payload=jwt.decode(
         token,
         SECRET_KEY,
