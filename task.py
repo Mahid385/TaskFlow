@@ -1,10 +1,11 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from uuid import uuid4
-
 from auth import get_current_user
-import auth
-app = FastAPI()
+router=APIRouter(
+    prefix="/task",
+    tags=["Tasks"]
+)
 
 tasks = []
 
@@ -34,7 +35,7 @@ def check_ownership(task_id: str, user_id):
 
 
 
-@app.post("/task/create_task")
+@router.post("/create_task")
 def create_task(
     request: TaskRequest,
     current_user=Depends(get_current_user)
@@ -54,7 +55,7 @@ def create_task(
     }
 
 
-@app.get("/task/all_tasks")
+@router.get("/all_tasks")
 def all_tasks(
     current_user=Depends(get_current_user)
 ):
@@ -72,7 +73,7 @@ def all_tasks(
     }
 
 
-@app.get("/task/{task_id}")
+@router.get("/{task_id}")
 def task_get(
     task_id: str,
     current_user=Depends(get_current_user)
@@ -87,7 +88,7 @@ def task_get(
     }
 
 
-@app.patch("/task/{task_id}")
+@router.patch("/{task_id}")
 def update_task(
     task_id: str,
     task_update: TaskUpdate,
@@ -116,7 +117,7 @@ def update_task(
     }
 
 
-@app.delete("/task/delete/{task_id}")
+@router.delete("/delete/{task_id}")
 def delete_task(
     task_id: str,
     current_user=Depends(get_current_user)

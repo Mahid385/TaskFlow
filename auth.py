@@ -1,5 +1,4 @@
-from fastapi import FastAPI,HTTPException,Depends
-import uvicorn
+from fastapi import APIRouter,HTTPException,Depends
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from pydantic import BaseModel, EmailStr, field_validator
@@ -29,7 +28,10 @@ class RegisterRequest(BaseModel):
 class RequestRefreshToken(BaseModel):
     refresh_token:str
 
-app=FastAPI()
+router=APIRouter(
+    prefix="/auth",
+    tags=["Authentication"]
+)
 
 
 def get_current_user(token:str=Depends(oauth2_scheme)):
@@ -54,7 +56,7 @@ def get_current_user(token:str=Depends(oauth2_scheme)):
         detail="User not found"
     )
 
-@app.post("/auth/reg")
+@router.post("/reg")
 def registration(request:RegisterRequest):
     hash_pass=pass_hash.hash(request.password)
     for inst in database:
@@ -76,7 +78,7 @@ def registration(request:RegisterRequest):
         "user_id":user_id,
         "user_email":request.email
     }
-@app.post("/auth/login")
+@router.post("/login")
 def login(formdata:OAuth2PasswordRequestForm=Depends()):
     email=formdata.username
     password=formdata.password
@@ -103,7 +105,7 @@ def login(formdata:OAuth2PasswordRequestForm=Depends()):
         )
 
 
-@app.post("/auth/refresh")
+@router.post("/refresh")
 def refresh_token(request:RequestRefreshToken):
 
     try:
@@ -130,5 +132,3 @@ def refresh_token(request:RequestRefreshToken):
             status_code=401,
             detail="User not found"
         )
-if __name__=="__main__":
-    uvicorn.run("regitser:app",reload=True,port=8000,host="127.0.0.1")
