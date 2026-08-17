@@ -40,7 +40,7 @@ def get_current_user(token:str=Depends(oauth2_scheme)):
             status_code=401,
             detail="Invalid or expired token"
         )
-    if payload["type"]!="access":
+    if payload.get("type")!="access":
         raise HTTPException(
             status_code=401,
             detail="Invalid access token"
@@ -60,7 +60,7 @@ def registration(request:RegisterRequest):
     for inst in database:
         if request.email==inst.get("user_email"):
             raise HTTPException(
-                status_code=401,
+                status_code=409,
                 detail="Email already registered"
             )
     user_id=uuid4()
@@ -113,7 +113,7 @@ def refresh_token(request:RequestRefreshToken):
             status_code=401,
             detail="Invalid or expired token"
         )
-    if payload["type"]!="refresh":
+    if payload.get("type")!="refresh":
         raise HTTPException(
             status_code=401,
             detail="Invalid token type"

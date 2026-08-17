@@ -1,119 +1,134 @@
-from fastapi import FastAPI,Depends,HTTPException
+from fastapi import FastAPI, Depends, HTTPException
 from pydantic import BaseModel
-from auth import get_current_user
 from uuid import uuid4
-app=FastAPI()
 
-tasks=[]
+from auth import get_current_user
+import auth
+app = FastAPI()
+
+tasks = []
+
+
 class TaskRequest(BaseModel):
-    title:str
-    description:str
+    title: str
+    description: str
+
 
 class TaskUpdate(BaseModel):
-    title:str|None
-    description:str|None
+    title: str | None = None
+    description: str | None = None
 
 
-def find_user_tasks(current_user):
-    user_tasks=[
-        task for task in tasks
-        if task["user_id"]==current_user["user_id"]
-    ] 
-    return user_tasks
+def check_ownership(task_id: str, user_id):
+    for task in tasks:
+        if (
+            task["task_id"] == task_id
+            and task["user_id"] == str(user_id)
+        ):
+            return task
+
+    raise HTTPException(
+        status_code=404,
+        detail="Task not found"
+    )
+
+
 
 @app.post("/task/create_task")
-def create_task(request:TaskRequest,current_user=Depends(get_current_user)):
-    task_id=uuid4()
-    
-    user_id=current_user["user_id"]
-    task={
-        "user_id":user_id,
-        "task_id":str(task_id),
-        "title":request.title,
-        "description":request.description
+def create_task(
+    request: TaskRequest,
+    current_user=Depends(get_current_user)
+):
+    task = {
+        "task_id": str(uuid4()),
+        "title": request.title,
+        "description": request.description,
+        "user_id": str(current_user["user_id"])
     }
+
     tasks.append(task)
+
     return {
-        "user_id":current_user["user_id"],
-        "task_id":task_id,
-        "message":"task successfully created"
+        "message": "Task successfully created",
+        "task": task
     }
+
 
 @app.get("/task/all_tasks")
-def all_tasks(current_user=Depends(get_current_user)):
-    try:
-        user_id=current_user.get("user_id")
-        user_tasks=find_user_tasks(current_user)
-        return {
-            "user_id":user_id,
-            "all_tasks":user_tasks
-        }
-    except:
-        raise HTTPException(
-            status_code=401,
-            detail="User not found"
-        )
-@app.get("/task/{task_id}")
-def task_get(task_id:str,current_user=Depends(get_current_user)):
-    user_id=current_user.get("user_id")
-    user_tasks=find_user_tasks(current_user)
-    for task in user_tasks:
-        if task["task_id"]==task_id:
-            return {
-                "user_id":str(user_id),
-                "task_id":task_id,
-                "task":task
-            }
-    
-    return{
-        "user_id":str(user_id),
-        "message":f"No task with this task id {task_id} found"
-    }
+def all_tasks(
+    current_user=Depends(get_current_user)
+):
+    user_id = str(current_user["user_id"])
 
-@app.patch("/task/{task_id}")
-def update_task(task_id:str,task_update:TaskUpdate,current_user=Depends(get_current_user)):
-    user_tasks=find_user_tasks(current_user)
-    user_task_update={}
-    for task in user_tasks:
-        if task["task_id"]==task_id:
-
-            if task_update.title:
-                task["title"]=task_update.title
-            elif task_update.description:
-                task["description"]=task_update.description
-            elif task_update.title and task_update.description:
-                task["title"]=task_update.title
-                task["description"]=task_update.description
-
-            else:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Task Update endpoint is empty"
-                )
-            user_task_update=task
-    for inst in tasks:
-        if inst["task_id"]==task_id:
-            inst=user_task_update
+    user_tasks = [
+        task
+        for task in tasks
+        if task["user_id"] == user_id
+    ]
 
     return {
-        "user_id":current_user["user_id"],
-        "task_id":task_id,
-        "message":"task update successfuly"
+        "user_id": user_id,
+        "tasks": user_tasks
     }
 
-@app.delete("/task/delete/{task_id}")
-def delete_task(task_id:str,current_user=Depends(get_current_user)):
-    if find_user_tasks(current_user):
-        for task in tasks:
-            if task["task_id"]==task_id:
-                task.remove()
-                return{
-                    "user_id":current_user["user_id"],
-                    "task_id":task_id,
-                    "message":"deleted successfully"
-                }
-    else:
+
+@app.get("/task/{task_id}")
+def task_get(
+    task_id: str,
+    current_user=Depends(get_current_user)
+):
+    task = check_ownership(
+        task_id,
+        current_user["user_id"]
+    )
+
+    return {
+        "task": task
+    }
+
+
+@app.patch("/task/{task_id}")
+def update_task(
+    task_id: str,
+    task_update: TaskUpdate,
+    current_user=Depends(get_current_user)
+):
+    task = check_ownership(
+        task_id,
+        current_user["user_id"]
+    )
+
+    if task_update.title is None and task_update.description is None:
         raise HTTPException(
-            status_code=401,
-            detail="task not found"
+            status_code=400,
+            detail="No fields provided for update"
         )
+
+    if task_update.title is not None:
+        task["title"] = task_update.title
+
+    if task_update.description is not None:
+        task["description"] = task_update.description
+
+    return {
+        "message": "Task updated successfully",
+        "task": task
+    }
+
+
+@app.delete("/task/delete/{task_id}")
+def delete_task(
+    task_id: str,
+    current_user=Depends(get_current_user)
+):
+    task = check_ownership(
+        task_id,
+        current_user["user_id"]
+    )
+
+    tasks.remove(task)
+
+    return {
+        "message": "Task deleted successfully",
+        "task_id": task_id
+    }
