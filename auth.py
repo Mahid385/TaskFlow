@@ -6,8 +6,10 @@ from uuid import uuid4
 import jwt
 from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
 from jose import JWTError
-database=[]
-tasks=[]
+from sqlalchemy.orm import Session
+from database import get_db,Base,engine
+from models import User
+Base.metadata.create_all(bind=engine)
 oauth2_scheme=OAuth2PasswordBearer(
     tokenUrl="/auth/login"
 )
@@ -34,7 +36,7 @@ router=APIRouter(
 )
 
 
-def get_current_user(token:str=Depends(oauth2_scheme)):
+def get_current_user(token:str=Depends(oauth2_scheme),db:Session=Depends(get_db)):
     try:
         payload=jwt.decode_access_token(token)
     except JWTError:
@@ -48,65 +50,77 @@ def get_current_user(token:str=Depends(oauth2_scheme)):
             detail="Invalid access token"
         )
     user_id=payload.get("sub")
-    for user in database:
-        if str(user.get("user_id"))==user_id:
-            return user
+    user=(
+        db.query(User)
+        .filter(User.id==str(user_id))
+        .first()
+    )
+    if user:
+        return user
     raise HTTPException(
         status_code=401,
         detail="User not found"
     )
 
 @router.post("/reg")
-def registration(request:RegisterRequest):
+def registration(request:RegisterRequest,db:Session=Depends(get_db)):
     hash_pass=pass_hash.hash(request.password)
-    for inst in database:
-        if request.email==inst.get("user_email"):
-            raise HTTPException(
-                status_code=409,
-                detail="Email already registered"
-            )
-    user_id=uuid4()
-    database.append(
-        {
-            "user_id":user_id,
-            "user_email":request.email,
-            "password":hash_pass
-        }
+    exsisting_user=(
+        db.query(User)
+        .filter(User.email==request.email)
+        .first()
     )
-
+    if exsisting_user:
+        raise HTTPException(
+            status_code=409,
+            detail="Email already registered"
+        )
+    user_id=uuid4()
+    user=User(
+        id=str(user_id),
+        email=request.email,
+        password=hash_pass
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
     return {
         "user_id":user_id,
         "user_email":request.email
     }
 @router.post("/login")
-def login(formdata:OAuth2PasswordRequestForm=Depends()):
+def login(formdata:OAuth2PasswordRequestForm=Depends(),db:Session=Depends(get_db)):
     email=formdata.username
     password=formdata.password
-    for inst in database:
-        if email==inst.get("user_email"):
-            try:
-                pass_hash.verify(inst.get("password"),password)
-                access_token=jwt.create_access_token(inst.get("user_id"))
-                refresh_token=jwt.create_refresh_token(inst.get("user_id"))
-                return {
-                "access_token": access_token,
-                "refresh_token":refresh_token,
-                "token_type": "bearer"
-                }
-            except VerifyMismatchError:
-                raise HTTPException(
-                    status_code=401,
-                    detail="Incorrect email or password"
-                )
-    else:
+    user=(
+        db.query(User)
+        .filter(User.email==email)
+        .first()
+    )
+    if not user:
         raise HTTPException(
             status_code=401,
             detail="Incorrect email or password"
         )
+    try:
+        pass_hash.verify(user.password,password)
 
+    except VerifyMismatchError:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password"
+        )
+    access_token=jwt.create_access_token(user.id)
+    refresh_token=jwt.create_refresh_token(user.id)
+    return {
+        "access_token": access_token,
+        "refresh_token":refresh_token,
+        "token_type": "bearer"
+    }
+    
 
 @router.post("/refresh")
-def refresh_token(request:RequestRefreshToken):
+def refresh_token(request:RequestRefreshToken,db:Session=Depends(get_db)):
 
     try:
         payload=jwt.decode_access_token(request.refresh_token)
@@ -120,13 +134,17 @@ def refresh_token(request:RequestRefreshToken):
             status_code=401,
             detail="Invalid token type"
         )
-    for user in database:
-        if str(user.get("user_id"))==payload.get("sub"):
-            access_token=jwt.create_access_token(payload["sub"])
-            return  {
-                        "access_token": access_token,
-                        "token_type": "bearer"
-                    }
+    user=(
+            db.query(User)
+            .filter(User.id==payload.get("sub"))
+            .first()
+        )
+    if user:
+        access_token=jwt.create_access_token(payload["sub"])
+        return  {
+                    "access_token": access_token,
+                    "token_type": "bearer"
+                }
     else:
         raise HTTPException(
             status_code=401,
