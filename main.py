@@ -2,7 +2,9 @@ from fastapi import FastAPI
 import uvicorn
 from auth import router as auth_router
 from task import router as task_router
+from database import Base,engine
 
+Base.metadata.create_all(bind=engine)
 app = FastAPI(
     title="TaskFlow API",
     version="1.0.0"

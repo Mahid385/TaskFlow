@@ -1,3 +1,4 @@
 pip.ipynb
 __pycache__
 taskflow.db
+.env

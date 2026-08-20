@@ -7,9 +7,9 @@ import jwt
 from fastapi.security import OAuth2PasswordBearer,OAuth2PasswordRequestForm
 from jose import JWTError
 from sqlalchemy.orm import Session
-from database import get_db,Base,engine
+from database import get_db
 from models import User
-Base.metadata.create_all(bind=engine)
+
 oauth2_scheme=OAuth2PasswordBearer(
     tokenUrl="/auth/login"
 )
@@ -85,7 +85,7 @@ def registration(request:RegisterRequest,db:Session=Depends(get_db)):
     db.commit()
     db.refresh(user)
     return {
-        "user_id":user_id,
+        "user_id":str(user_id),
         "user_email":request.email
     }
 @router.post("/login")
