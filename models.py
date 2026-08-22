@@ -1,5 +1,5 @@
 from sqlalchemy import String,ForeignKey
-from sqlalchemy.orm import Mapped,mapped_column
+from sqlalchemy.orm import Mapped,mapped_column,relationship
 from database import Base
 
 class User(Base):
@@ -21,6 +21,9 @@ class User(Base):
     password: Mapped[str] = mapped_column(
         String,
         nullable=False
+    )
+    tasks:Mapped[list["Task"]]=relationship(
+        back_populates="user"
     )
 
 
@@ -45,4 +48,7 @@ class Task(Base):
     user_id: Mapped[str] = mapped_column(
         ForeignKey("users.id"),
         nullable=False
+    )
+    user:Mapped["User"]=relationship(
+        back_populates="tasks"
     )

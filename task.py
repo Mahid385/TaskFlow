@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from uuid import uuid4
 from sqlalchemy.orm import Session
-
+from schemas import TaskCreate,TaskResponse,TaskUpdate,TaskListResponse
 from auth import get_current_user
 from database import get_db
 from models import Task
@@ -19,15 +19,12 @@ class TaskRequest(BaseModel):
     description: str
 
 
-class TaskUpdate(BaseModel):
-    title: str | None = None
-    description: str | None = None
 
 
 def check_ownership(
     task_id: str,
     user_id: str,
-    db: Session
+    db
 ):
     task = (
         db.query(Task)
@@ -47,9 +44,9 @@ def check_ownership(
     return task
 
 
-@router.post("/create_task")
+@router.post("/create_task",response_model=TaskResponse)
 def create_task(
-    request: TaskRequest,
+    request: TaskCreate,
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -75,52 +72,31 @@ def create_task(
         id=str(uuid4()),
         title=request.title,
         description=request.description,
-        user_id=user_id
+        user=current_user
     )
 
     db.add(task)
     db.commit()
     db.refresh(task)
 
-    return {
-        "message": "Task successfully created",
-        "task": {
-            "id": task.id,
-            "title": task.title,
-            "description": task.description,
-            "user_id": task.user_id
-        }
-    }
+    return task
 
-
-@router.get("/all_tasks")
+@router.get("/all_tasks",response_model=TaskListResponse)
 def all_tasks(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     user_id = str(current_user.id)
 
-    user_tasks = (
-        db.query(Task)
-        .filter(Task.user_id == user_id)
-        .all()
-    )
+    user_tasks = current_user.tasks
 
     return {
         "user_id": user_id,
-        "tasks": [
-            {
-                "id": task.id,
-                "title": task.title,
-                "description": task.description,
-                "user_id": task.user_id
-            }
-            for task in user_tasks
-        ]
+        "tasks": user_tasks
     }
 
 
-@router.get("/{task_id}")
+@router.get("/{task_id}",response_model=TaskResponse)
 def task_get(
     task_id: str,
     current_user=Depends(get_current_user),
@@ -134,12 +110,7 @@ def task_get(
         db
     )
 
-    return {
-        "id": task.id,
-        "title": task.title,
-        "description": task.description,
-        "user_id": task.user_id
-    }
+    return task
 
 
 @router.patch("/{task_id}")
