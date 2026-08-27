@@ -3,6 +3,9 @@ from datetime import datetime,timezone
 from sqlalchemy.orm import Mapped,mapped_column,relationship
 from database import Base
 
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
 class User(Base):
     __tablename__="users"
 
@@ -26,7 +29,7 @@ class User(Base):
 
     created_at:Mapped[datetime]=mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
+        default=utc_now,
         nullable=False
     )
     tasks:Mapped[list["Task"]]=relationship(
@@ -54,14 +57,14 @@ class Task(Base):
 
     created_at:Mapped[datetime]=mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
+        default=utc_now,
         nullable=False 
     )
 
     updated_at:Mapped[datetime]=mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
+        default=utc_now,
+        onupdate=utc_now,
         nullable=False
     )
 
