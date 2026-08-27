@@ -1,4 +1,5 @@
-from sqlalchemy import String,ForeignKey
+from sqlalchemy import String,ForeignKey,DateTime,func
+from datetime import datetime,timezone
 from sqlalchemy.orm import Mapped,mapped_column,relationship
 from database import Base
 
@@ -22,6 +23,12 @@ class User(Base):
         String,
         nullable=False
     )
+
+    created_at:Mapped[datetime]=mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
     tasks:Mapped[list["Task"]]=relationship(
         back_populates="user"
     )
@@ -42,6 +49,19 @@ class Task(Base):
 
     description: Mapped[str] = mapped_column(
         String,
+        nullable=False
+    )
+
+    created_at:Mapped[datetime]=mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False 
+    )
+
+    updated_at:Mapped[datetime]=mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
         nullable=False
     )
 
