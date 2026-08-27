@@ -21,3 +21,4 @@ class TaskResponse(BaseModel):
 class TaskListResponse(BaseModel):
     user_id: str
     tasks: list[TaskResponse]
+    model_config=ConfigDict(from_attributes=True)

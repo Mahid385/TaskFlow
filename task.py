@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from uuid import uuid4
 from sqlalchemy.orm import Session
 from schemas import TaskCreate,TaskResponse,TaskUpdate,TaskListResponse
@@ -13,19 +12,11 @@ router = APIRouter(
     tags=["Tasks"]
 )
 
-
-class TaskRequest(BaseModel):
-    title: str
-    description: str
-
-
-
-
 def check_ownership(
     task_id: str,
     user_id: str,
-    db
-):
+    db:Session
+) -> Task:
     task = (
         db.query(Task)
         .filter(
@@ -113,7 +104,7 @@ def task_get(
     return task
 
 
-@router.patch("/{task_id}")
+@router.patch("/{task_id}",response_model=TaskResponse)
 def update_task(
     task_id: str,
     task_update: TaskUpdate,
@@ -146,15 +137,7 @@ def update_task(
     db.commit()
     db.refresh(task)
 
-    return {
-        "message": "Task updated successfully",
-        "task": {
-            "id": task.id,
-            "title": task.title,
-            "description": task.description,
-            "user_id": task.user_id
-        }
-    }
+    return task
 
 
 @router.delete("/delete/{task_id}")
