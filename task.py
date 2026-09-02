@@ -65,10 +65,13 @@ def create_task(
         description=request.description,
         user=current_user
     )
-
-    db.add(task)
-    db.commit()
-    db.refresh(task)
+    try:
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+    except Exception:
+        db.rollback()
+        raise
 
     return task
 
@@ -133,9 +136,12 @@ def update_task(
 
     if task_update.description is not None:
         task.description = task_update.description
-
-    db.commit()
-    db.refresh(task)
+    try:
+        db.commit()
+        db.refresh(task)
+    except Exception:
+        db.rollback()
+        raise
 
     return task
 
@@ -153,9 +159,12 @@ def delete_task(
         user_id,
         db
     )
-
-    db.delete(task)
-    db.commit()
+    try:
+        db.delete(task)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     return {
         "message": "Task deleted successfully",

@@ -81,9 +81,13 @@ def registration(request:RegisterRequest,db:Session=Depends(get_db)):
         email=request.email,
         password=hash_pass
     )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    except Exception:
+        db.rollback()
+        raise
     return {
         "user_id":str(user_id),
         "user_email":request.email
