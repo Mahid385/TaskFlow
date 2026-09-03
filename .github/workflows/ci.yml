@@ -13,6 +13,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: write
+
     env:
       SECRET_KEY: test-secret-key
       DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/taskflow_test
@@ -54,3 +58,23 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t taskflow-api:test .
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          docker tag taskflow-api:test ghcr.io/mahid385/taskflow-api:latest
+          docker tag taskflow-api:test ghcr.io/mahid385/taskflow-api:${{ github.sha }}
+
+      - name: Push Docker image
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          docker push ghcr.io/mahid385/taskflow-api:latest
+          docker push ghcr.io/mahid385/taskflow-api:${{ github.sha }}
