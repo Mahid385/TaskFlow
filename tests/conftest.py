@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -7,9 +9,9 @@ from main import app
 from database import Base, get_db
 
 
-TEST_DATABASE_URL = (
-    "postgresql+psycopg://postgres:mahid123"
-    "@localhost:5432/taskflow_test"
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql+psycopg://postgres:mahid123@localhost:5432/taskflow_test"
 )
 
 
