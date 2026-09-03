@@ -3,3 +3,4 @@ __pycache__
 taskflow.db
 .env
 migration_backup
+.env.docker
